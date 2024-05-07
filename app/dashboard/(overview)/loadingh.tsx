@@ -1,4 +1,4 @@
-import DashboardSkeleton from "../../ui/skeletons";
+import DashboardSkeleton from '../../ui/skeletons';
 
 /* 
   Este componente não precisa mais ser utilizado pois 
@@ -6,5 +6,5 @@ import DashboardSkeleton from "../../ui/skeletons";
 */
 
 export default function loading() {
-  return <DashboardSkeleton />
+  return <DashboardSkeleton />;
 }
