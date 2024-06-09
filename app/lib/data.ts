@@ -23,7 +23,7 @@ export async function fetchRevenue() {
 
     const data = await sql<Revenue>`SELECT * FROM revenue`;
 
-    console.log('Data fetch completed after 2 seconds.');
+    console.log('Revenue data fetch completed after 2 seconds.');
 
     return data.rows;
   } catch (error) {
@@ -48,7 +48,7 @@ export async function fetchLatestInvoices() {
       ...invoice,
       amount: formatCurrency(invoice.amount),
     }));
-    console.log('Data fetch completed after 3 seconds.');
+    console.log('LatestInvoices data fetch completed after 3 seconds.');
     return latestInvoices;
   } catch (error) {
     console.error('Database Error:', error);
@@ -58,6 +58,7 @@ export async function fetchLatestInvoices() {
 
 export async function fetchCardData() {
   try {
+    console.log('Fetching card data...')
     // You can probably combine these into a single SQL query
     // However, we are intentionally splitting them to demonstrate
     // how to initialize multiple queries in parallel with JS.
@@ -79,6 +80,7 @@ export async function fetchCardData() {
     const totalPaidInvoices = formatCurrency(data[2].rows[0].paid ?? '0');
     const totalPendingInvoices = formatCurrency(data[2].rows[0].pending ?? '0');
 
+    console.log('Card data fetch completed.')
     return {
       numberOfCustomers,
       numberOfInvoices,
