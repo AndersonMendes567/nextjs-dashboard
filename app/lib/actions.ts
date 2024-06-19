@@ -7,9 +7,15 @@ import { z } from 'zod';
  
 const FormSchema = z.object({
   id: z.string(),
-  customerId: z.string(),
-  amount: z.coerce.number(),
-  status: z.enum(['pending', 'paid']),
+  customerId: z.string().uuid({
+    message: 'Please, select a customer!'
+  }),
+  amount: z.coerce.number().gt(0,{
+    message: 'Please, enter an amount greater than $0!'
+  }),
+  status: z.enum(['pending', 'paid'], {
+    invalid_type_error: 'Please, enter an pending or paid invoice status!'
+  }),
   date: z.string(),
 });
  
@@ -17,49 +23,100 @@ const CreateInvoice = FormSchema.omit({ id: true, date: true });
 
 const UpdateInvoice = FormSchema.omit({ id: true, date: true });
 
-export async function createInvoice(formData: FormData) {
-  const { customerId, amount, status } = CreateInvoice.parse({
+// This is temporary until @types/react-dom is updated
+export type State = {
+  errors?: {
+    customerId?: string[];
+    amount?: string[];
+    status?: string[];
+  };
+  message?: string | null;
+};
+
+export async function createInvoice(state: State, formData: FormData) {
+  const validatedFields = CreateInvoice.safeParse({
     customerId: formData.get('customerId'),
     amount: formData.get('amount'),
     status: formData.get('status'),
   });
+
+  // If form validation fails, return errors early. Otherwise, continue.
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Missing Fields. Failed to Create Invoice.',
+    };
+  }
+
+  const { customerId, amount, status } = validatedFields.data
   
   const amountInCents = amount * 100;
   const date = new Date().toISOString().split('T')[0]
 
-  await sql`
-    INSERT INTO invoices (customer_id, amount, status, date)
-    values (${customerId}, ${amountInCents}, ${status}, ${date})
-  `
+  try {
+    await sql`
+      INSERT INTO invoices (customer_id, amount, status, date)
+      values (${customerId}, ${amountInCents}, ${status}, ${date})
+    `
+  } catch (error) {
+    console.log('Erro ao inserir faturas: ', error)
+    return {
+      message: 'Error de Banco de Dados: Falha ao criar fatura!'
+    }
+  }
 
   revalidatePath('/dashboard/invoices')
   redirect('/dashboard/invoices')
 }
 
-export async function updateInvoice(id: string, formData: FormData) {
+export async function updateInvoice(id: string, state: State, formData: FormData) {
   unstable_noStore()
 
-  const rawFormData = {
+  const validatedFields = UpdateInvoice.safeParse({
     customerId: formData.get('customerId'),
     amount: formData.get('amount'),
     status: formData.get('status'),
+  })
+
+  if(!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Missing Fields. Failed to Update Invoice.'
+    }
   }
 
-  const { customerId, amount, status } = UpdateInvoice.parse(rawFormData);
+  const { customerId, amount, status } = validatedFields.data
 
   const amountInCents = amount * 100;
 
-  await sql`
-    UPDATE invoices 
-    SET customer_id = ${customerId}, amount = ${amountInCents}, status = ${status}
-    WHERE id = ${id}
-  `;
+  try {
+    await sql`
+      UPDATE invoices 
+      SET customer_id = ${customerId}, amount = ${amountInCents}, status = ${status}
+      WHERE id = ${id}
+    `;
+  } catch (error) {
+    console.log('Erro ao atualizar fatura: ', error)
+    return {
+      message: 'Error de Banco de Dados: Falha ao atualizar fatura!'
+    }
+  }
 
   revalidatePath('/dashboard/invoices')
   redirect('/dashboard/invoices')
 }
 
 export async function deleteInvoice(id: string) {
-  await sql`DELETE FROM invoices WHERE id = ${id}`;
+  //throw new Error('Erro ao excluir fatura!')
+
+  try {
+    await sql`DELETE FROM invoices WHERE id = ${id}`;
+  } catch (error) {
+    console.log('Erro ao excluir fatura: ', error)
+    return {
+      message: 'Error de Banco de Dados: Falha ao excluir fatura!'
+    }
+  }
+
   revalidatePath('/dashboard/invoices');
 }
